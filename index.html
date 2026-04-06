@@ -1,159 +1,27 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DocQA Pro</title>
-
-<style>
-body {
-    font-family: Arial;
-    background: #0f172a;
-    color: white;
-    margin: 0;
-}
-header {
-    background: #020617;
-    padding: 15px;
-    text-align: center;
-    font-size: 20px;
-}
-.container {
-    padding: 15px;
-    max-width: 800px;
-    margin: auto;
-}
-#chat {
-    height: 400px;
-    overflow-y: auto;
-    background: #020617;
-    padding: 10px;
-    border-radius: 10px;
-}
-.message {
-    margin: 10px 0;
-    padding: 10px;
-    border-radius: 6px;
-}
-.user { background: #1e293b; text-align: right; }
-.bot { background: #022c22; }
-
-input, button {
-    padding: 10px;
-    margin-top: 10px;
-    border-radius: 5px;
-    border: none;
-}
-button { background: #22c55e; }
-
-</style>
+<title>DocQA System</title>
+<link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
-<header>📄 DocQA Professional System</header>
+<header>📄 DocQA AI System</header>
 
 <div class="container">
 
-<input type="file" id="pdfFile">
-<button onclick="loadPDF()">Upload</button>
+<input type="file" id="file">
+<button onclick="upload()">Upload</button>
 
 <div id="chat"></div>
 
-<input type="text" id="question" placeholder="Ask question...">
-<button onclick="askQuestion()">Ask</button>
+<input type="text" id="question" placeholder="Ask question">
+<button onclick="ask()">Ask</button>
 
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
-
-<script>
-
-let fullText = "";
-
-// 🔑 PUT YOUR OPENROUTER KEY HERE
-const API_KEY = "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";
-
-async function loadPDF() {
-    const file = document.getElementById("pdfFile").files[0];
-    const reader = new FileReader();
-
-    reader.onload = async function() {
-        const pdf = await pdfjsLib.getDocument(new Uint8Array(this.result)).promise;
-        fullText = "";
-
-        for (let i = 1; i <= pdf.numPages; i++) {
-            const page = await pdf.getPage(i);
-            const content = await page.getTextContent();
-            fullText += content.items.map(i => i.str).join(" ") + " ";
-        }
-
-        addMessage("PDF loaded!", "bot");
-    };
-
-    reader.readAsArrayBuffer(file);
-}
-
-async function askQuestion() {
-    const q = document.getElementById("question").value;
-    addMessage(q, "user");
-
-    addMessage("Thinking...", "bot");
-
-    const answer = await getAnswer(q);
-
-    removeThinking();
-    addMessage(answer, "bot");
-}
-
-async function getAnswer(question) {
-
-    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: {
-            "Authorization": "Bearer " + API_KEY,
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-            model: "mistralai/mistral-7b-instruct",
-            messages: [
-                {
-                    role: "system",
-                    content: "Answer only from document"
-                },
-                {
-                    role: "user",
-                    content: fullText.slice(0, 12000) + "\n\nQuestion: " + question
-                }
-            ]
-        })
-    });
-
-    const data = await res.json();
-
-    try {
-        return data.choices[0].message.content;
-    } catch {
-        return "Error generating answer.";
-    }
-}
-
-function addMessage(text, type) {
-    const chat = document.getElementById("chat");
-    const div = document.createElement("div");
-    div.className = "message " + type;
-    div.innerText = text;
-    chat.appendChild(div);
-    chat.scrollTop = chat.scrollHeight;
-}
-
-function removeThinking() {
-    const chat = document.getElementById("chat");
-    const last = chat.lastChild;
-    if (last && last.innerText.includes("Thinking")) last.remove();
-}
-
-</script>
+<script src="script.js"></script>
 
 </body>
 </html>
