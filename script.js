@@ -1,6 +1,6 @@
 let pdfText = "";
 
-const API_KEY = "PASTE_OPENROUTER_KEY";
+const API_KEY = "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";
 
 async function upload() {
     const file = document.getElementById("file").files[0];
