@@ -3,108 +3,65 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DocQA AI Pro</title>
+<title>DocQA Pro</title>
 
 <style>
 body {
-    margin: 0;
-    font-family: 'Segoe UI';
+    font-family: Arial;
     background: #0f172a;
     color: white;
+    margin: 0;
 }
-
 header {
     background: #020617;
     padding: 15px;
     text-align: center;
     font-size: 20px;
-    font-weight: bold;
 }
-
 .container {
+    padding: 15px;
     max-width: 800px;
     margin: auto;
-    padding: 10px;
 }
-
-.upload-box {
-    display: flex;
-    gap: 10px;
-}
-
 #chat {
     height: 400px;
     overflow-y: auto;
     background: #020617;
-    padding: 15px;
+    padding: 10px;
     border-radius: 10px;
-    margin-top: 10px;
 }
-
 .message {
     margin: 10px 0;
     padding: 10px;
-    border-radius: 8px;
+    border-radius: 6px;
 }
-
-.user {
-    background: #1e293b;
-    text-align: right;
-}
-
-.bot {
-    background: #022c22;
-}
+.user { background: #1e293b; text-align: right; }
+.bot { background: #022c22; }
 
 input, button {
     padding: 10px;
-    border-radius: 6px;
+    margin-top: 10px;
+    border-radius: 5px;
     border: none;
 }
+button { background: #22c55e; }
 
-button {
-    background: #22c55e;
-    cursor: pointer;
-}
-
-.controls {
-    display: flex;
-    gap: 10px;
-    margin-top: 10px;
-}
-
-.footer {
-    text-align: center;
-    margin-top: 20px;
-    color: #94a3b8;
-    font-size: 14px;
-}
 </style>
 </head>
 
 <body>
 
-<header>📄 DocQA AI Pro System</header>
+<header>📄 DocQA Professional System</header>
 
 <div class="container">
 
-<div class="upload-box">
-<input type="file" id="pdfFile" accept=".pdf">
+<input type="file" id="pdfFile">
 <button onclick="loadPDF()">Upload</button>
-<button onclick="clearChat()">Clear Chat</button>
-</div>
 
 <div id="chat"></div>
 
-<div class="controls">
-<input type="text" id="question" placeholder="Ask something...">
+<input type="text" id="question" placeholder="Ask question...">
 <button onclick="askQuestion()">Ask</button>
-</div>
-
-<div class="footer">
-👨‍💻 Team:<br>
-Omkar Ganesh Dahibhate | Akash Arun Sanap | Aniket Rajesh Gaikwad
-</div>
 
 </div>
 
@@ -113,31 +70,25 @@ Omkar Ganesh Dahibhate | Akash Arun Sanap | Aniket Rajesh Gaikwad
 <script>
 
 let fullText = "";
-let chatHistory = [];
 
-// 🔑 ADD YOUR GEMINI API KEY
-const API_KEY = "AIzaSyCCKTAGWfUPjayR4ntR3B3dwJihCXhOSL8";
+// 🔑 PUT YOUR OPENROUTER KEY HERE
+const API_KEY = "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";
 
 async function loadPDF() {
     const file = document.getElementById("pdfFile").files[0];
-    if (!file) return alert("Upload PDF first");
-
     const reader = new FileReader();
 
     reader.onload = async function() {
-        const typedarray = new Uint8Array(this.result);
-        const pdf = await pdfjsLib.getDocument(typedarray).promise;
-
+        const pdf = await pdfjsLib.getDocument(new Uint8Array(this.result)).promise;
         fullText = "";
 
         for (let i = 1; i <= pdf.numPages; i++) {
             const page = await pdf.getPage(i);
             const content = await page.getTextContent();
-            const text = content.items.map(item => item.str).join(" ");
-            fullText += text + " ";
+            fullText += content.items.map(i => i.str).join(" ") + " ";
         }
 
-        addMessage("PDF loaded successfully!", "bot");
+        addMessage("PDF loaded!", "bot");
     };
 
     reader.readAsArrayBuffer(file);
@@ -145,50 +96,43 @@ async function loadPDF() {
 
 async function askQuestion() {
     const q = document.getElementById("question").value;
-    if (!fullText) return alert("Upload PDF first");
-
     addMessage(q, "user");
+
     addMessage("Thinking...", "bot");
 
-    const answer = await getAIAnswer(q);
+    const answer = await getAnswer(q);
 
     removeThinking();
     addMessage(answer, "bot");
-
-    chatHistory.push({q, answer});
-    document.getElementById("question").value = "";
 }
 
-async function getAIAnswer(question) {
+async function getAnswer(question) {
 
-    const prompt = `
-You are a smart AI DocQA system.
+    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+            "Authorization": "Bearer " + API_KEY,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            model: "mistralai/mistral-7b-instruct",
+            messages: [
+                {
+                    role: "system",
+                    content: "Answer only from document"
+                },
+                {
+                    role: "user",
+                    content: fullText.slice(0, 12000) + "\n\nQuestion: " + question
+                }
+            ]
+        })
+    });
 
-Document:
-${fullText.substring(0, 12000)}
-
-Previous chat:
-${JSON.stringify(chatHistory)}
-
-Answer the question clearly:
-${question}
-`;
-
-    const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${API_KEY}`,
-        {
-            method: "POST",
-            headers: {"Content-Type": "application/json"},
-            body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }]
-            })
-        }
-    );
-
-    const data = await response.json();
+    const data = await res.json();
 
     try {
-        return data.candidates[0].content.parts[0].text;
+        return data.choices[0].message.content;
     } catch {
         return "Error generating answer.";
     }
@@ -205,15 +149,8 @@ function addMessage(text, type) {
 
 function removeThinking() {
     const chat = document.getElementById("chat");
-    const msgs = chat.getElementsByClassName("bot");
-    if (msgs.length > 0 && msgs[msgs.length - 1].innerText.includes("Thinking")) {
-        msgs[msgs.length - 1].remove();
-    }
-}
-
-function clearChat() {
-    document.getElementById("chat").innerHTML = "";
-    chatHistory = [];
+    const last = chat.lastChild;
+    if (last && last.innerText.includes("Thinking")) last.remove();
 }
 
 </script>
